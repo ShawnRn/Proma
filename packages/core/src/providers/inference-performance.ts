@@ -13,21 +13,19 @@ function number(value: unknown): number | undefined {
 /** 兼容 Ollama 原生统计与 OpenAI 兼容接口的 timings；时长统一为毫秒。 */
 export class InferencePerformanceTracker {
   private timings: Record<string, unknown> = {}
-  private cachedTokens: number | undefined
 
   accept(value: unknown): InferencePerformance | undefined {
     const envelope = record(value)
     if (!envelope) return undefined
     const data = record(envelope.response) ?? envelope
-    const timings = record(data.timings)
+    // Open WebUI 会把 Ollama 原生计时保留在 usage 内。
+    const usage = record(data.usage)
+    const timings = record(data.timings) ?? record(usage?.timings)
     if (timings) this.timings = { ...this.timings, ...timings }
     for (const key of ['eval_count', 'eval_duration', 'prompt_eval_count', 'prompt_eval_duration', 'prompt_eval_cached_count']) {
-      if (number(data[key]) !== undefined) this.timings[key] = data[key]
+      const value = number(data[key]) ?? number(usage?.[key])
+      if (value !== undefined) this.timings[key] = value
     }
-    const usage = record(data.usage)
-    const cached = number(record(usage?.prompt_tokens_details)?.cached_tokens)
-      ?? number(data.prompt_eval_cached_count)
-    if (cached !== undefined) this.cachedTokens = cached
 
     const t = this.timings
     const result: InferencePerformance = {}
@@ -38,8 +36,9 @@ export class InferencePerformanceTracker {
       result.outputTokens = outputTokens
       result.outputDurationMs = outputDurationMs
     }
-    const inputTokens = number(t.prompt_eval_count) ?? number(t.prompt_n)
-    const prefillTokens = inputTokens === undefined ? undefined : Math.max(0, inputTokens - (this.cachedTokens ?? 0))
+    // 使用服务给出的计数与耗时配对，和其 prompt_per_second / Open WebUI 一致。
+    // cached_tokens 的含义因服务而异，不能再从这组计数中统一扣除。
+    const prefillTokens = number(t.prompt_eval_count) ?? number(t.prompt_n)
     const prefillDurationMs = number(t.prompt_eval_duration) !== undefined
       ? number(t.prompt_eval_duration)! / 1_000_000 : number(t.prompt_ms)
     if (tokensPerSecond(prefillTokens, prefillDurationMs) !== undefined) {

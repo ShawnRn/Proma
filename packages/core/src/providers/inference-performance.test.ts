@@ -15,11 +15,20 @@ describe('模型推理速度', () => {
     expect(tokensPerSecond(performance?.prefillTokens, performance?.prefillDurationMs)).toBeCloseTo(1555.26, 2)
   })
 
-  test('Given 分开的 timings 与 usage 帧 When 输入命中缓存 Then 预填充只计算实际处理的 token', () => {
+  test('Given 分开的 timings 与 usage 帧 When 输入命中缓存 Then 保持服务计数和耗时的原始口径', () => {
     const tracker = new InferencePerformanceTracker()
     tracker.accept({ timings: { prompt_n: 1000, prompt_ms: 100, predicted_n: 60, predicted_ms: 1000 } })
     const result = tracker.accept({ usage: { prompt_tokens_details: { cached_tokens: 900 } } })
-    expect(result).toEqual({ outputTokens: 60, outputDurationMs: 1000, prefillTokens: 100, prefillDurationMs: 100 })
+    expect(result).toEqual({ outputTokens: 60, outputDurationMs: 1000, prefillTokens: 1000, prefillDurationMs: 100 })
+  })
+
+  test('Given Open WebUI usage 内的 Ollama 统计 When 读取 Then 输出和预填充均采用真实计时', () => {
+    const result = new InferencePerformanceTracker().accept({ usage: {
+      prompt_eval_count: 7074, prompt_eval_duration: 4548436000,
+      eval_count: 2283, eval_duration: 38273303000,
+    } })
+    expect(tokensPerSecond(result?.prefillTokens, result?.prefillDurationMs)).toBeCloseTo(1555.26, 2)
+    expect(tokensPerSecond(result?.outputTokens, result?.outputDurationMs)).toBeCloseTo(59.65, 2)
   })
 
   test.each([0, -1, NaN, Infinity, undefined])('Given 非法耗时 %s When 计算 Then 不展示速度', (duration) => {
@@ -30,7 +39,7 @@ describe('模型推理速度', () => {
     expect(new InferencePerformanceTracker().accept({ usage: { completion_tokens: 30 } })).toBeUndefined()
     expect(new InferencePerformanceTracker().accept({ timings: { predicted_n: '30', predicted_ms: 1 } })).toBeUndefined()
     expect(new InferencePerformanceTracker().accept({
-      timings: { prompt_n: 100, prompt_ms: 10 }, usage: { prompt_tokens_details: { cached_tokens: 100 } },
+      timings: { prompt_n: 0, prompt_ms: 10 }, usage: { prompt_tokens_details: { cached_tokens: 100 } },
     })).toBeUndefined()
   })
 
