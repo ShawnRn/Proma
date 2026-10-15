@@ -18,6 +18,7 @@ export * from './sse-reader.ts'
 export * from './url-utils.ts'
 export * from './thinking-capability.ts'
 export * from './user-agent.ts'
+export * from './inference-performance.ts'
 
 // 导出适配器类
 export { AnthropicAdapter } from './anthropic-adapter.ts'

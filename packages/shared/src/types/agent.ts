@@ -1,5 +1,6 @@
 import { isGpt6AstraFamily, isGpt6LunaFamily, isGpt6SolFamily } from '../utils/model-family'
 import type { ProviderType } from './channel'
+import type { InferencePerformance } from './inference-performance'
 
 /**
  * Agent 相关类型定义
@@ -276,6 +277,8 @@ export interface SkillActivation {
 
 /** SDK result 消息（查询结束时返回） */
 export interface SDKResultMessage {
+  /** 本轮模型推理统计，随 JSONL 会话保存 */
+  performance?: InferencePerformance
   type: 'result'
   subtype: 'success' | 'error' | 'error_max_turns' | 'error_max_budget_usd' | 'error_during_execution' | (string & {})
   usage: {
@@ -484,6 +487,7 @@ export interface TypedError {
 
 /** Agent 事件 Usage 信息 */
 export interface AgentEventUsage {
+  performance?: InferencePerformance
   inputTokens?: number
   outputTokens?: number
   cacheReadTokens?: number

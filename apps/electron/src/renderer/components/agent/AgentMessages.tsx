@@ -6,6 +6,7 @@
  */
 
 import * as React from 'react'
+import { InferenceSpeedBadge, inferenceSpeedLines } from '../chat/InferenceSpeedBadge'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { RotateCw, AlertTriangle, CheckCircle2, Ban, ChevronDown, ChevronRight } from 'lucide-react'
 import { WelcomeEmptyState } from '@/components/welcome/WelcomeEmptyState'
@@ -538,6 +539,7 @@ export function buildUsageTooltip(durationMs: number, usage?: AgentEventUsage): 
   lines.push(`耗时: ${formatDuration(durationMs)}`)
 
   if (usage) {
+    lines.push(...inferenceSpeedLines(usage.performance))
     const pureInput = (usage.inputTokens ?? 0) - (usage.cacheReadTokens ?? 0) - (usage.cacheCreationTokens ?? 0)
     if (pureInput > 0) lines.push(`输入: ${pureInput.toLocaleString()}`)
     if (usage.outputTokens) lines.push(`输出: ${usage.outputTokens.toLocaleString()}`)
@@ -551,16 +553,19 @@ export function buildUsageTooltip(durationMs: number, usage?: AgentEventUsage): 
 /** 耗时徽章 — 悬浮显示 token 用量明细 */
 export function DurationBadge({ durationMs, usage }: { durationMs: number; usage?: AgentEventUsage }): React.ReactElement {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className="text-[15px] tabular-nums font-light cursor-default">
-          {formatDuration(durationMs)}
-        </span>
-      </TooltipTrigger>
-      <TooltipContent side="top">
-        <p className="whitespace-pre-line text-left">{buildUsageTooltip(durationMs, usage)}</p>
-      </TooltipContent>
-    </Tooltip>
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" aria-label="查看耗时与用量" className="rounded-sm text-[15px] tabular-nums font-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            {formatDuration(durationMs)}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <p className="whitespace-pre-line text-left">{buildUsageTooltip(durationMs, usage)}</p>
+        </TooltipContent>
+      </Tooltip>
+      <InferenceSpeedBadge performance={usage?.performance} />
+    </span>
   )
 }
 
