@@ -94,3 +94,4 @@ export {
   collectSuccessfulSkillReadActivations,
   collectSkillActivations,
 } from './skill-usage'
+export { tokensPerSecond, sumInferencePerformance } from './inference-performance'

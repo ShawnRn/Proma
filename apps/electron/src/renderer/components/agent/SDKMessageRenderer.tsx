@@ -230,6 +230,7 @@ function extractTurnUsage(turnMessages: SDKMessage[]): { durationMs?: number; us
       usage: {
         inputTokens: u.input_tokens + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0),
         outputTokens: u.output_tokens,
+        performance: resultMsg.performance,
         cacheReadTokens: u.cache_read_input_tokens,
         cacheCreationTokens: u.cache_creation_input_tokens,
         costUsd: resultMsg.total_cost_usd,
@@ -596,7 +597,7 @@ export function AssistantTurnRenderer({ turn, allMessages, basePath, onFork, onR
         const hasDuration = durationMs != null
         if (!hasDuration && !hasActions && !showStoppedBadge) return null
         return (
-          <MessageActions className="pl-[46px] mt-0.5 min-h-[28px] justify-start">
+          <MessageActions className="pl-[46px] mt-0.5 min-h-[28px] justify-start flex-wrap">
             {hasDuration && <DurationBadge durationMs={durationMs!} usage={usage} />}
             {textContent && <CopyButton content={textContent} />}
             {textContent && onCreateTodo && (

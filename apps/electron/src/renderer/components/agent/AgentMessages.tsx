@@ -6,6 +6,9 @@
  */
 
 import * as React from 'react'
+import { InferenceSpeedBadge, inferenceSpeedLines } from '../chat/InferenceSpeedBadge'
+import { LiveInferenceSpeedBadge } from '../chat/LiveInferenceSpeedBadge'
+import type { LiveInferenceSpeed } from '@proma/shared'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { RotateCw, AlertTriangle, CheckCircle2, Ban, ChevronDown, ChevronRight } from 'lucide-react'
 import { WelcomeEmptyState } from '@/components/welcome/WelcomeEmptyState'
@@ -538,6 +541,7 @@ export function buildUsageTooltip(durationMs: number, usage?: AgentEventUsage): 
   lines.push(`耗时: ${formatDuration(durationMs)}`)
 
   if (usage) {
+    lines.push(...inferenceSpeedLines(usage.performance))
     const pureInput = (usage.inputTokens ?? 0) - (usage.cacheReadTokens ?? 0) - (usage.cacheCreationTokens ?? 0)
     if (pureInput > 0) lines.push(`输入: ${pureInput.toLocaleString()}`)
     if (usage.outputTokens) lines.push(`输出: ${usage.outputTokens.toLocaleString()}`)
@@ -551,21 +555,24 @@ export function buildUsageTooltip(durationMs: number, usage?: AgentEventUsage): 
 /** 耗时徽章 — 悬浮显示 token 用量明细 */
 export function DurationBadge({ durationMs, usage }: { durationMs: number; usage?: AgentEventUsage }): React.ReactElement {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className="text-[15px] tabular-nums font-light cursor-default">
-          {formatDuration(durationMs)}
-        </span>
-      </TooltipTrigger>
-      <TooltipContent side="top">
-        <p className="whitespace-pre-line text-left">{buildUsageTooltip(durationMs, usage)}</p>
-      </TooltipContent>
-    </Tooltip>
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" aria-label="查看耗时与用量" className="rounded-sm text-[15px] tabular-nums font-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            {formatDuration(durationMs)}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <p className="whitespace-pre-line text-left">{buildUsageTooltip(durationMs, usage)}</p>
+        </TooltipContent>
+      </Tooltip>
+      <InferenceSpeedBadge performance={usage?.performance} />
+    </span>
   )
 }
 
 /** Agent 运行指示器 — Shimmer Spinner + 无括号的运行时间 */
-function AgentRunningIndicator({ startedAt }: { startedAt?: number }): React.ReactElement {
+function AgentRunningIndicator({ startedAt, liveSpeed }: { startedAt?: number; liveSpeed?: LiveInferenceSpeed }): React.ReactElement {
   const [elapsed, setElapsed] = React.useState(0)
 
   React.useEffect(() => {
@@ -587,6 +594,8 @@ function AgentRunningIndicator({ startedAt }: { startedAt?: number }): React.Rea
     <div className="flex items-center gap-2 min-h-[28px]">
       <Spinner size="sm" className="text-primary/75" />
       <span className="text-[13px] font-light text-muted-foreground/75 tabular-nums">Agent Running {formatTime(elapsed)}</span>
+      <span className="text-muted-foreground/40" aria-hidden="true">·</span>
+      <LiveInferenceSpeedBadge sample={liveSpeed} />
     </div>
   )
 }
@@ -893,6 +902,10 @@ export const AgentMessages = React.memo(function AgentMessages({
   // 高频 token/live message 状态在历史区内闭环，避免唤醒 AgentView 输入框和工具栏。
   const streamState = useAtomValue(agentSessionStreamingStateAtomFamily(sessionId))
   const liveMessages = useAtomValue(agentLiveMessagesAtomFamily(sessionId))
+  const currentAssistant = liveMessages?.findLast((message) => message.type === 'assistant'
+    && (streamState?.startedAt == null
+      || (message as Record<string, unknown>)._promaLiveRunStartedAt === streamState.startedAt)) as SDKAssistantMessage | undefined
+  const liveSpeed = currentAssistant?._liveInferenceSpeed
   const streaming = streamState?.running ?? false
   const userProfile = useAtomValue(userProfileAtom)
   const channels = useAtomValue(channelsAtom)
@@ -1230,7 +1243,7 @@ export const AgentMessages = React.memo(function AgentMessages({
               {hasLiveAssistantContent && !suppressAgentRunning && (
                 <div className="pl-[56px] min-h-[28px]">
                   {retrying && <RetryingNotice retrying={retrying} />}
-                  {streaming && <AgentRunningIndicator startedAt={startedAt} />}
+                  {streaming && <AgentRunningIndicator startedAt={startedAt} liveSpeed={liveSpeed} />}
                 </div>
               )}
 
@@ -1244,7 +1257,7 @@ export const AgentMessages = React.memo(function AgentMessages({
                   />
                   <MessageContent>
                     {retrying && <RetryingNotice retrying={retrying} />}
-                    {streaming && <AgentRunningIndicator startedAt={startedAt} />}
+                    {streaming && <AgentRunningIndicator startedAt={startedAt} liveSpeed={liveSpeed} />}
                   </MessageContent>
                 </Message>
               )}

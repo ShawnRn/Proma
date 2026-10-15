@@ -7,6 +7,7 @@
 
 import type { ProviderType } from './channel'
 import type { AgentThinkingLevel } from './agent'
+import type { InferencePerformance } from './inference-performance'
 
 // ===== 附件相关 =====
 
@@ -100,6 +101,8 @@ export type MessageRole = 'user' | 'assistant' | 'system'
  * 聊天消息
  */
 export interface ChatMessage {
+  /** 模型服务返回的推理速度统计 */
+  performance?: InferencePerformance
   /** 消息唯一标识 */
   id: string
   /** 发送者角色 */

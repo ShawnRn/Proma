@@ -30,6 +30,7 @@ import {
   ReasoningContent,
 } from '@/components/ai-elements/reasoning'
 import { CopyButton } from './CopyButton'
+import { InferenceSpeedBadge } from './InferenceSpeedBadge'
 import { MigrateToAgentButton } from './MigrateToAgentButton'
 import { DeleteMessageDialog } from './DeleteMessageDialog'
 import { InlineEditForm } from './InlineEditForm'
@@ -268,7 +269,8 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
 
         {/* 操作按钮（非 streaming 时显示，hover 时可见） */}
         {(message.content || message.error || (message.attachments && message.attachments.length > 0)) && !isStreaming && !isInlineEditing && (
-          <MessageActions className="pl-[46px] mt-0.5 min-h-[28px]">
+          <MessageActions className="pl-[46px] mt-0.5 min-h-[28px] flex-wrap">
+            {message.role === 'assistant' && <InferenceSpeedBadge performance={message.performance} />}
             <CopyButton content={message.role === 'user' ? parsedUserContent.text : message.content} />
             {message.role === 'assistant' && conversationId && (
               <MigrateToAgentButton conversationId={conversationId} />

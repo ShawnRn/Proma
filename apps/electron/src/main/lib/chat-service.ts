@@ -14,12 +14,14 @@
 
 import { randomUUID } from 'node:crypto'
 import type { WebContents } from 'electron'
-import { CHAT_IPC_CHANNELS } from '@proma/shared'
+import { CHAT_IPC_CHANNELS, sumInferencePerformance } from '@proma/shared'
+import type { InferencePerformance } from '@proma/shared'
 import type { ChatSendInput, ChatMessage, GenerateTitleInput, FileAttachment, ChatToolActivity } from '@proma/shared'
 import {
   getAdapter,
   streamSSE,
   fetchTitle,
+  observeInferencePerformance,
 } from '@proma/core'
 import type { ImageAttachmentData, ContinuationMessage } from '@proma/core'
 import { listChannels, resolveChannelRuntimeApiKey } from './channel-manager'
@@ -282,7 +284,15 @@ export async function sendMessage(
         : systemMessage
 
     const proxyUrl = await getEffectiveProxyUrl()
-    const fetchFn = getFetchFn(proxyUrl)
+    const baseFetch = getFetchFn(proxyUrl)
+    const performanceSamples: Array<InferencePerformance | undefined> = []
+    const fetchFn = (async (url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+      const index = performanceSamples.length
+      performanceSamples.push(undefined)
+      return observeInferencePerformance(await baseFetch(url, init), (performance) => {
+        performanceSamples[index] = performance
+      })
+    }) as typeof fetch
 
     // 9. 工具续接循环
     let continuationMessages: ContinuationMessage[] = []
@@ -426,6 +436,7 @@ export async function sendMessage(
     if (accumulatedContent.trim() || accumulatedGeneratedAttachments.length > 0) {
       const assistantMsg: ChatMessage = {
         id: assistantMsgId,
+        performance: sumInferencePerformance(performanceSamples),
         role: 'assistant',
         content: accumulatedContent,
         createdAt: Date.now(),

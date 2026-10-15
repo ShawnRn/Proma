@@ -9,6 +9,8 @@ import { randomUUID } from 'node:crypto'
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { AssistantMessage, ToolResultMessage, UserMessage } from '@earendil-works/pi-ai/compat'
 import type { SDKAssistantMessage, SDKMessage } from '@proma/shared'
+import { sumInferencePerformance } from '@proma/shared'
+import { getPiMessagePerformance } from './pi-inference-performance'
 import type { RuntimeGuardResultOverride } from '../agent-runtime-guards'
 import { isMalformedResponseError, isTransientNetworkError } from '../error-patterns'
 import { sanitizeToolResultImageContent } from '../image-content-validation'
@@ -330,6 +332,7 @@ export function convertResultMessage(
   const terminalReason = override?.terminalReason ?? (lastAssistant?.stopReason === 'length' ? 'max_tokens' : 'completed')
   return {
     type: 'result',
+    performance: sumInferencePerformance(assistants.map(getPiMessagePerformance)),
     subtype: override?.subtype ?? (assistantError ? 'error_during_execution' : terminalReason === 'max_tokens' ? 'max_tokens' : 'success'),
     usage,
     total_cost_usd: costValues.length > 0 ? costValues.reduce((sum, cost) => sum + cost, 0) : undefined,

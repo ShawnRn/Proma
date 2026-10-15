@@ -200,6 +200,7 @@ export class OpenAIAdapter implements ProviderAdapter {
       model: input.modelId,
       messages,
       stream: true,
+      stream_options: { include_usage: true },
     }
 
     // 工具定义
