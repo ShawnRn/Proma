@@ -1,6 +1,6 @@
 import { isGpt6AstraFamily, isGpt6LunaFamily, isGpt6SolFamily } from '../utils/model-family'
 import type { ProviderType } from './channel'
-import type { InferencePerformance } from './inference-performance'
+import type { InferencePerformance, LiveInferenceSpeed } from './inference-performance'
 
 /**
  * Agent 相关类型定义
@@ -215,6 +215,8 @@ export type SDKUserContentBlock =
 
 /** SDK assistant 消息 */
 export interface SDKAssistantMessage {
+  /** 仅存在于 renderer 的实时预览，不写入历史。 */
+  _liveInferenceSpeed?: LiveInferenceSpeed
   type: 'assistant'
   message: {
     content: SDKContentBlock[]
@@ -658,6 +660,7 @@ export type AgentExternalRunSource = 'feishu' | 'dingtalk' | 'wechat' | 'slack' 
 
 /** Pi AssistantMessageEvent 的可序列化增量；不携带累计 partial，避免跨进程复制整段输出。 */
 export type AgentAssistantDelta =
+  | { type: 'inference_speed'; sample: LiveInferenceSpeed }
   | { type: 'start' }
   | { type: 'text_start'; contentIndex: number }
   | { type: 'text_delta'; contentIndex: number; delta: string }

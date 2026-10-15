@@ -9,8 +9,9 @@ export function inferenceSpeedLines(performance?: InferencePerformance): string[
   const output = tokensPerSecond(performance.outputTokens, performance.outputDurationMs)
   const prefill = tokensPerSecond(performance.prefillTokens, performance.prefillDurationMs)
   return [
-    ...(output === undefined ? [] : [`输出速度：${output.toFixed(1)} tok/s`]),
+    ...(output === undefined ? [] : [`输出速度：${performance.outputTimingSource === 'client' ? '≈ ' : ''}${output.toFixed(1)} tok/s`]),
     ...(prefill === undefined ? [] : [`预填充速度：${prefill.toFixed(1)} tok/s`]),
+    ...(prefill === undefined && output !== undefined ? ['预填充速度：暂不可用'] : []),
   ]
 }
 
@@ -23,7 +24,9 @@ export function InferenceSpeedBadge({ performance }: { performance?: InferencePe
       {lines.map((line) => <p key={line} className="tabular-nums">{line}</p>)}
       <p className="mt-2 text-muted-foreground">输出速度是模型每秒生成的 token 数，包含思考。</p>
       <p className="text-muted-foreground">预填充速度是模型阅读输入的速度。</p>
-      <p className="mt-1 text-muted-foreground">由模型服务计时，不含工具执行与网络等待。</p>
+      <p className="mt-1 text-muted-foreground">{performance?.outputTimingSource === 'client'
+        ? '按接收输出的时间统计，包含传输影响；不含首字等待和工具执行。'
+        : '由模型服务计时，不含工具执行与网络等待。'}</p>
     </>
   )
   return (

@@ -17,6 +17,7 @@ export function sumInferencePerformance(items: Array<InferencePerformance | unde
     if (tokensPerSecond(item.outputTokens, item.outputDurationMs) !== undefined) {
       result.outputTokens = (result.outputTokens ?? 0) + item.outputTokens!
       result.outputDurationMs = (result.outputDurationMs ?? 0) + item.outputDurationMs!
+      if (item.outputTimingSource === 'client') result.outputTimingSource = 'client'
     }
     if (tokensPerSecond(item.prefillTokens, item.prefillDurationMs) !== undefined) {
       result.prefillTokens = (result.prefillTokens ?? 0) + item.prefillTokens!

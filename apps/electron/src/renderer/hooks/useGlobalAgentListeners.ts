@@ -184,6 +184,7 @@ function applyAssistantDeltasToPreview(
   // batcher 会把同一帧内的几十个 delta 合并，逐个复制会在一帧内产生几十份
   // content 数组与消息对象，在多 Agent 并发下形成持续的 GC 压力。
   const content = [...message.message.content] as SDKContentBlock[]
+  let liveInferenceSpeed = message._liveInferenceSpeed
   for (const delta of deltas) {
     const index = 'contentIndex' in delta ? delta.contentIndex : undefined
     const ensureBlock = (fallback: SDKContentBlock): number => {
@@ -196,6 +197,9 @@ function applyAssistantDeltasToPreview(
     }
     const existing = index != null ? content[index] : undefined
     switch (delta.type) {
+      case 'inference_speed':
+        liveInferenceSpeed = delta.sample
+        break
       case 'text_start':
         content[ensureBlock({ type: 'text', text: '' })] = { type: 'text', text: '' }
         break
@@ -239,7 +243,7 @@ function applyAssistantDeltasToPreview(
         break
     }
   }
-  return { ...message, message: { ...message.message, content }, _partial: true } as SDKAssistantMessage
+  return { ...message, _liveInferenceSpeed: liveInferenceSpeed, message: { ...message.message, content }, _partial: true } as SDKAssistantMessage
 }
 
 function createAssistantDeltaPreview(payload: AgentAssistantDeltaPayload, metadata: Partial<SDKAssistantMessage>): SDKAssistantMessage {

@@ -68,4 +68,4 @@ export * from './agent-island'
 
 // 用户授权的 Markdown Vault 相关类型
 export * from './vault'
-export type { InferencePerformance } from './inference-performance'
+export type { InferencePerformance, LiveInferenceSpeed } from './inference-performance'

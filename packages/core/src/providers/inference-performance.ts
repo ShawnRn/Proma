@@ -1,5 +1,6 @@
 import { tokensPerSecond } from '@proma/shared'
-import type { InferencePerformance } from '@proma/shared'
+import type { InferencePerformance, LiveInferenceSpeed } from '@proma/shared'
+import { LiveInferenceSpeedTracker } from './live-inference-speed'
 
 function record(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === 'object' ? value as Record<string, unknown> : undefined
@@ -15,8 +16,9 @@ export class InferencePerformanceTracker {
   private cachedTokens: number | undefined
 
   accept(value: unknown): InferencePerformance | undefined {
-    const data = record(value)
-    if (!data) return undefined
+    const envelope = record(value)
+    if (!envelope) return undefined
+    const data = record(envelope.response) ?? envelope
     const timings = record(data.timings)
     if (timings) this.timings = { ...this.timings, ...timings }
     for (const key of ['eval_count', 'eval_duration', 'prompt_eval_count', 'prompt_eval_duration', 'prompt_eval_cached_count']) {
@@ -52,9 +54,12 @@ export class InferencePerformanceTracker {
 export function observeInferencePerformance(
   response: Response,
   onPerformance: (performance: InferencePerformance | undefined) => void,
+  onLiveSpeed?: (sample: LiveInferenceSpeed) => void,
 ): Response {
   if (!response.ok || !response.body || !response.headers.get('content-type')?.includes('text/event-stream')) return response
   const tracker = new InferencePerformanceTracker()
+  const liveTracker = new LiveInferenceSpeedTracker(onLiveSpeed)
+  let serverPerformance: InferencePerformance | undefined
   const decoder = new TextDecoder()
   let buffer = ''
   let discardLine = false
@@ -67,7 +72,11 @@ export function observeInferencePerformance(
       if (!discardLine && buffer.startsWith('data:')) {
         try {
           const data: unknown = JSON.parse(buffer.slice(5).trim())
-          onPerformance(tracker.accept(data))
+          liveTracker.accept(data)
+          serverPerformance = tracker.accept(data)
+          const observed = liveTracker.performance()
+          onPerformance(serverPerformance?.outputTokens ? serverPerformance
+            : observed || serverPerformance ? { ...observed, ...serverPerformance } : undefined)
         } catch { /* 非 JSON 哨兵或坏帧交由原解析器处理。 */ }
       }
       buffer = ''
@@ -79,7 +88,12 @@ export function observeInferencePerformance(
       consume(decoder.decode(chunk, { stream: true }))
       controller.enqueue(chunk)
     },
-    flush() { consume(decoder.decode() + '\n') },
+    flush() {
+      consume(decoder.decode() + '\n')
+      const observed = liveTracker.finish()
+      onPerformance(serverPerformance?.outputTokens ? serverPerformance
+        : observed || serverPerformance ? { ...observed, ...serverPerformance } : undefined)
+    },
   }))
   return new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers })
 }
